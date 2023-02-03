@@ -201,6 +201,7 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 		}
 	} else {
 		// Read the first meta page to determine the page size.
+		// buf大小：4k
 		var buf [0x1000]byte
 		if _, err := db.file.ReadAt(buf[:], 0); err == nil {
 			m := db.pageInBuffer(buf[:], 0).meta()
@@ -857,13 +858,22 @@ func (db *DB) allocate(count int) (*page, error) {
 
 // grow grows the size of the database to the given sz.
 func (db *DB) grow(sz int) error {
+	// 注意区分：
+	// 数据页总大小 = pageid * pagesize
+	// 文件大小
+
+	// 传入的sz是预期的数据页总大小，如果小于当前文件大小，则不需要扩展文件
 	// Ignore if the new size is less than available file size.
 	if sz <= db.filesz {
 		return nil
 	}
 
+	// db.datasz 当前内存中mmap的大小（已调整后的）
+	// db.filesz 只在当前函数内使用，默认0，每次grow后改变
+
 	// If the data is smaller than the alloc size then only allocate what's needed.
 	// Once it goes over the allocation size then allocate in chunks.
+	// 如果数据少，文件小，则每次只grow到需要的大小；否则每次alloc 16MB
 	if db.datasz < db.AllocSize {
 		sz = db.datasz
 	} else {
@@ -968,14 +978,23 @@ type Info struct {
 }
 
 type meta struct {
-	magic    uint32
-	version  uint32
+	// 魔数
+	magic uint32
+	// 版本
+	version uint32
+	// 页大小，与操作系统页大小保持一致
 	pageSize uint32
-	flags    uint32
-	root     bucket
+	// 保留值，目前未用到
+	flags uint32
+	// 所有小柜子bucket的根
+	root bucket
+	// 空闲列表页ID
 	freelist pgid
-	pgid     pgid
-	txid     txid
+	// 元数据页ID
+	pgid pgid
+	// 最大事务ID
+	txid txid
+	// 校验和
 	checksum uint64
 }
 

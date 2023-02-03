@@ -15,9 +15,11 @@ type node struct {
 	spilled    bool
 	key        []byte
 	pgid       pgid
-	parent     *node
-	children   nodes
-	inodes     inodes
+	// Cursor遍历时用到
+	parent *node
+	// 分支节点会记录其子节点列表，只在spill和rebalance时用到
+	children nodes
+	inodes   inodes
 }
 
 // root returns the top-level node this node is attached to.
@@ -188,6 +190,7 @@ func (n *node) read(p *page) {
 }
 
 // write writes the items onto one or more pages.
+// 一个node可能会占据多个page空间，因为某个kv可能非常大（超过4K），需要写入多页空间
 func (n *node) write(p *page) {
 	// Initialize page.
 	if n.isLeaf {
@@ -206,6 +209,7 @@ func (n *node) write(p *page) {
 		return
 	}
 
+	// 可以看出，写入的顺序是：PageElement1, PageElement2, ..., key1, [value1], key2, [value2], ...
 	// Loop over each item and write it to the page.
 	b := (*[maxAllocSize]byte)(unsafe.Pointer(&p.ptr))[n.pageElementSize()*len(n.inodes):]
 	for i, item := range n.inodes {
@@ -273,6 +277,11 @@ func (n *node) split(pageSize int) []*node {
 func (n *node) splitTwo(pageSize int) (*node, *node) {
 	// Ignore the split if the page doesn't have at least enough nodes for
 	// two pages or if the nodes can fit in a single page.
+	// 需同时满足以下两个条件才会分裂：
+	// 1. 每个page至少2个节点，分裂后的2个page至少2*2个节点
+	// 2. node占用的字节数超过页大小
+	// 疑问：如果节点数为3个，但是占据的内存超过页大小，那page如何存储？
+	// 答：会将该node写入多个连续的page
 	if len(n.inodes) <= (minKeysPerPage*2) || n.sizeLessThan(pageSize) {
 		return n, nil
 	}
@@ -597,9 +606,12 @@ func (s nodes) Less(i, j int) bool {
 // It can be used to point to elements in a page or point
 // to an element which hasn't been added to a page yet.
 type inode struct {
+	// 1-子桶叶子节点，其他-普通节点
 	flags uint32
-	pgid  pgid
-	key   []byte
+	// inode为分支时才有值（叶子肯定是在同一页）
+	pgid pgid
+	key  []byte
+	// 叶子元素时才有值
 	value []byte
 }
 

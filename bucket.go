@@ -117,6 +117,7 @@ func (b *Bucket) Bucket(name []byte) *Bucket {
 	}
 
 	// Otherwise create a bucket and cache it.
+	// TODO: 这里的v不是nil吗？
 	var child = b.openBucket(v)
 	if b.buckets != nil {
 		b.buckets[string(name)] = child

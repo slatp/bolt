@@ -7,6 +7,7 @@ import (
 	"unsafe"
 )
 
+// page结构中，ptr之前的字段作为header
 const pageHeaderSize = int(unsafe.Offsetof(((*page)(nil)).ptr))
 
 const minKeysPerPage = 2
@@ -14,10 +15,15 @@ const minKeysPerPage = 2
 const branchPageElementSize = int(unsafe.Sizeof(branchPageElement{}))
 const leafPageElementSize = int(unsafe.Sizeof(leafPageElement{}))
 
+// 页类型
 const (
-	branchPageFlag   = 0x01
-	leafPageFlag     = 0x02
-	metaPageFlag     = 0x04
+	// 中间节点
+	branchPageFlag = 0x01
+	// 叶子节点
+	leafPageFlag = 0x02
+	// 元数据
+	metaPageFlag = 0x04
+	// 空闲列表
 	freelistPageFlag = 0x10
 )
 
@@ -28,11 +34,16 @@ const (
 type pgid uint64
 
 type page struct {
-	id       pgid
-	flags    uint16
-	count    uint16
+	// 8B，页ID
+	id pgid
+	// 2B，页类型，见上面的页类型定义
+	flags uint16
+	// 2B，统计中间节点、叶子节点、空闲列表页的个数
+	count uint16
+	// 4B，空闲列表页中统计数据是否有溢出
 	overflow uint32
-	ptr      uintptr
+	// 真实的数据
+	ptr uintptr
 }
 
 // typ returns a human readable page type string used for debugging.
@@ -95,9 +106,12 @@ func (s pages) Less(i, j int) bool { return s[i].id < s[j].id }
 
 // branchPageElement represents a node on a branch page.
 type branchPageElement struct {
-	pos   uint32
+	// 以该branchPageElement结构为起点，其与key（最小key）之间的偏移量
+	pos uint32
+	// key的字节数
 	ksize uint32
-	pgid  pgid
+	// 该分支元素其指向的页ID
+	pgid pgid
 }
 
 // key returns a byte slice of the node key.
@@ -108,6 +122,7 @@ func (n *branchPageElement) key() []byte {
 
 // leafPageElement represents a node on a leaf page.
 type leafPageElement struct {
+	// 由于叶子节点既可以存放普通叶子，也可以存放桶，所以通过flags来区分
 	flags uint32
 	pos   uint32
 	ksize uint32

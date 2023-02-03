@@ -171,6 +171,7 @@ func (tx *Tx) Commit() error {
 
 	opgid := tx.meta.pgid
 
+	// 疑问：先申请内存，并mmap，后grow文件，并写入文件数据
 	// Free the freelist and allocate new pages for it. This will overestimate
 	// the size of the freelist but not underestimate the size (which would be bad).
 	tx.db.freelist.free(tx.meta.txid, tx.db.page(tx.meta.freelist))

@@ -37,6 +37,7 @@ func (c *Cursor) First() (key []byte, value []byte) {
 
 	// If we land on an empty page then move to the next value.
 	// https://github.com/slatp/bolt/issues/450
+	// 什么情况下会出现空页？事务中先删除了某条数据导致？
 	if c.stack[len(c.stack)-1].count() == 0 {
 		c.next()
 	}

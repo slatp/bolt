@@ -1,3 +1,4 @@
+//go:build !windows && !plan9 && !solaris
 // +build !windows,!plan9,!solaris
 
 package bolt
@@ -47,12 +48,14 @@ func funlock(db *DB) error {
 // mmap memory maps a DB's data file.
 func mmap(db *DB, sz int) error {
 	// Map the data file to memory.
+	// syscall.PROT_READ 对这块内存是只读访问，即：mmap出来的数据只供程序读取，写回文件是直接通过IO调用完成的
 	b, err := syscall.Mmap(int(db.file.Fd()), 0, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)
 	if err != nil {
 		return err
 	}
 
 	// Advise the kernel that the mmap is accessed randomly.
+	// 如果不这样设置，操作系统可能每次读出附近多个page
 	if err := madvise(b, syscall.MADV_RANDOM); err != nil {
 		return fmt.Errorf("madvise: %s", err)
 	}
