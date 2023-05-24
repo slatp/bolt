@@ -40,7 +40,7 @@ type page struct {
 	flags uint16
 	// 2B，统计中间节点、叶子节点、空闲列表页的个数
 	count uint16
-	// 4B，空闲列表页中统计数据是否有溢出
+	// 4B，由于page中的数据可能太大，1个page放不小，从而溢出为多个page来表示一个page
 	overflow uint32
 	// 真实的数据
 	ptr uintptr

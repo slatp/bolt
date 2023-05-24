@@ -105,6 +105,8 @@ type DB struct {
 	meta1    *meta
 	pageSize int
 	opened   bool
+	// rwtx代表当前的读写事务，在BeginTx时赋值，在Commit/Rollback时重置为nil
+	// 某些全局函数，如：mmap，需要在unmap之前dereference当前事务中引用的资源
 	rwtx     *Tx
 	txs      []*Tx
 	freelist *freelist
